@@ -10,7 +10,7 @@ let app = new Vue({
         startArticle: "",
         endArticle: "",
         timer: "",
-        countdown: 8,
+        countdown: 10000,
         finished: false,
         started: false,
         activeTip: "",
@@ -273,6 +273,41 @@ function hideElements() {
     
 }
 
+/* 
+ * Handles hovering over an link to display a tooltip with the page preview. 
+ */
+function hoverOverArticle() {
+    const tooltips = Array.from(document.querySelectorAll(".hover-tool"));
+    const tooltipContainer = document.querySelector(".hover-tooltip");
+    
+    const data = [
+        {end: 1, txt: "test success"}
+    ]
+    
+    let tooltipID;
+    tooltips.forEach((tooltip) => {
+      tooltip.addEventListener("mouseenter", (e) => {
+        tooltipID = e.target.getAttribute('data-id');
+        tooltipContainer.classList.add("fade-in-tooltip");
+        tooltipContainer.style.left = `${e.pageX}px`;
+        tooltipContainer.style.top = `${e.pageY}px`;
+        tooltipContainer.innerText = data[tooltipID - 1].txt;  
+      });
+    
+      tooltip.addEventListener("mouseout", (e) => {
+        tooltipContainer.classList.remove("fade-in-tooltip");
+      });
+    });
+    
+    tooltipContainer.addEventListener('mouseenter', () => {   
+        tooltipContainer.classList.add("fade-in-tooltip");
+    })
+
+    tooltipContainer.addEventListener('mouseout', () => {     
+        tooltipContainer.classList.remove("fade-in-tooltip");    
+    })
+}
+
 function setMargin() {
     const element = document.getElementById("time-box");
     document.getElementById("wikipedia-frame").firstChild.style.paddingBottom = (element.offsetHeight + 25) +"px";
@@ -400,6 +435,7 @@ window.addEventListener("load", async function() {
     saveRun(); // Save run on clicking "play" when `prompt_id` is valid
 
     // Wait for countdown to expire AND the start article elements to load before starting the timer and displaying the page
+    hoverOverArticle();
     await Promise.all([countdownOnLoad(article, goalPage), loadPage(article)]);
 
     startGame();

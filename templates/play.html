@@ -18,7 +18,12 @@
                 Start Article<br><strong>[[startArticle]]</strong>
             </div>
             <div class="col-sm-auto text-nowrap px-4 py-2">
-                End Article<br><strong>[[endArticle]]</strong>
+                End Article<br>
+                <strong>
+                    <a href="#" class="hover-tool" data-id="end">
+                        [[endArticle]]
+                    </a>
+                </strong>
             </div>
             <div class="col-sm-auto text-nowrap px-4 py-2">
                 Time Elapsed<br><strong>[[timer]] s</strong>
@@ -29,7 +34,13 @@
     <div v-show="!started">
         <div class="text-center text-size-1">
             <p>Starting Article: <strong>[[startArticle]]</strong></p>
-            <p>Goal Article: <strong>[[endArticle]]</strong></p>
+            <p>Goal Article:     
+                <strong>
+                    <a href="#" class="hover-tool" data-id="end">
+                        [[endArticle]]
+                    </a>
+                </strong>
+            </p>
             <p>Good Luck!</p>
 
             <div><button id="start-btn" class="btn btn-outline-secondary">(Don't want to wait? Start immediately!)</button></div>
@@ -45,6 +56,14 @@
 
         <h6 id="tips" class="text-center">[[activeTip]]</h6>
     </div>  
+
+    <!-- Temp hover placeholder when no text is mapped -->
+    <div class="hover-tooltip">
+        Lorem ipsum dolor sit amet consectetur adipisicing elit. 
+        Saepe excepturi accusantium molestias eaque aspernatur commodi 
+        quae magni beatae ipsam officia, necessitatibus deleniti rerum 
+        ducimus doloribus blanditiis aut esse in itaque!
+    </div>
 
     <div v-if="finished" class="text-left">
         <p><h4>You found it!</h4></p>
