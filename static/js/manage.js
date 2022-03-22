@@ -1,5 +1,4 @@
-import { fetchJson } from "./modules/fetch.js";
-import { getPath } from "./modules/scraper.js";
+import { fetchAsync, fetchJson } from "./modules/fetch.js";
 import { getArticleTitle } from "./modules/wikipediaAPI/util.js";
 
 Vue.component('prompt-item', {
@@ -130,22 +129,12 @@ Vue.component('path-checker', {
 
     methods: {
         async pathCheck() {
-            const task_id = await getPath(this.pathStart, this.pathEnd);
 
-            let interval = setInterval(async () => {
-                const response = await fetchJson("/api/scraper/path/result", "POST", {
-                    "task_id": task_id,
-                });
-
-                const resp = await response.json();
-                console.log(resp);
-
-                if (resp["status"] == "complete") {
-                    clearInterval(interval);
-                    this.path = resp["Articles"];
-                }
-            }, 1000);
-
+            const res = await fetchAsync("/api/scraper/path", "POST", {
+                "start": this.pathStart,
+                "end": this.pathEnd
+            });
+            this.path = res["Articles"];
         }
     },
 
@@ -176,23 +165,18 @@ Vue.component('path-generator', {
     methods: {
         async genPrompt() {
             try {
-                const response = await fetchJson("/api/scraper/gen_prompts", 'POST', {
-                    'N': 1
-                })
-
-                if (response.status != 200) {
-                    // For user facing interface, do something other than this
-                    alert(await response.text());
-                    return;
-                }
-
-                const resp = await response.json()
+                const resp = await fetchAsync("/api/scraper/gen_prompts", 'POST');
 
                 let prompt = {};
 
                 prompt.start = resp['Prompts'][0][0];
                 prompt.end = resp['Prompts'][0][1];
-                prompt.path = await getPath(prompt.start, prompt.end);
+
+                const res = await fetchAsync("/api/scraper/path", "POST", {
+                    "start": prompt.start,
+                    "end": prompt.end
+                });
+                prompt.path = res["Articles"];
 
                 this.prompts.push(prompt);
             } catch (e) {
