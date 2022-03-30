@@ -51,7 +51,7 @@ Vue.component('marathon-item', {
 
     template: (`
     <li>
-        <strong>{{prompt.prompt_id}}</strong>: {{prompt.start}} 
+        <strong>{{prompt.prompt_id}}</strong>: {{prompt.start}}
         <div>{{prompt.initcheckpoints}}</div>
         <div>{{prompt.checkpoints}}</div>
         <button v-on:click="deletePrompt" type="button" class="btn btn-default" >
@@ -276,7 +276,7 @@ Vue.component('marathon-generator', {
                 [this.cp[ind], this.cp[ind+1]] = [this.cp[ind+1], this.cp[ind]];
             }
             this.$forceUpdate();
-        }, 
+        },
 
         deleteA: function(ind, mode) {
             if (mode == 0) {
@@ -289,7 +289,7 @@ Vue.component('marathon-generator', {
     },
 
     template: (`
-        <div>          
+        <div>
             <div>
                 <div class="input-group">
                     <label class="input-group-text" for="seedField">Seed:</label>
@@ -301,7 +301,7 @@ Vue.component('marathon-generator', {
                     <div>Starting Checkpoints:
                         <ol>
                         <template v-for="(item, index) in startcp" :key="index">
-                            <li>{{item}} 
+                            <li>{{item}}
                                 <button v-on:click="moveup(index, 0)"><i class="bi bi-chevron-up"></i></button>
                                 <button v-on:click="movedown(index, 0)"><i class="bi bi-chevron-down"></i></button>
                                 <button v-on:click="deleteA(index, 0)"><i class="bi bi-trash"></i></button>
@@ -312,7 +312,7 @@ Vue.component('marathon-generator', {
                     <div>Reserve Checkpoints:
                         <ol>
                         <template v-for="(item, index) in cp">
-                            <li>{{item}} 
+                            <li>{{item}}
                                 <button v-on:click="moveup(index, 1)"><i class="bi bi-chevron-up"></i></button>
                                 <button v-on:click="movedown(index, 1)"><i class="bi bi-chevron-down"></i></button>
                                 <button v-on:click="deleteA(index, 1)"><i class="bi bi-trash"></i></button>
@@ -321,7 +321,7 @@ Vue.component('marathon-generator', {
                         </ol>
                     </div>
                 </div>
-                
+
                 <div class="input-group">
                     <label class="input-group-text" for="inputField">Add checkpoint:</label>
                     <input class="form-control" type="text" name="inputField" id="inputField">
@@ -341,7 +341,7 @@ Vue.component('marathon-generator', {
             </div>
             <hr>
             <div id="generatedMarathonText"></div>
-            <hr>  
+            <hr>
         </div>
     `)
 
@@ -357,7 +357,7 @@ var app = new Vue({
         unused: [],
         weeks: [],
         marathon: [],
-  
+
         startPrompt: "",
         endPrompt: "",
     },
