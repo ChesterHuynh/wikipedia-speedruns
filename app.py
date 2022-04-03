@@ -7,7 +7,7 @@ import mail
 import tokens
 import tasks
 
-from util.flaskjson import ISODateJSONEncoder
+from util.flaskjson import CustomJSONEncoder
 
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
@@ -17,7 +17,7 @@ def create_app(test_config=None):
 
     app = Flask(__name__)
 
-    app.json_encoder = ISODateJSONEncoder
+    app.json_encoder = CustomJSONEncoder
 
     app.config.from_file('config/default.json', json.load)
 
