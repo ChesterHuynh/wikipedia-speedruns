@@ -13,6 +13,8 @@
 {% block content %}
 
 <div id="app">
+<template v-cloak> <!--Top level v-cloak to hide stuff when loading vue-->
+
     <canvas id="confettiCanvas" style="pointer-events:none;"></canvas>
 
     <div v-show="started && !finished" id="time-box" class="HUDwrapper container" v-cloak>
@@ -30,7 +32,15 @@
                 <span v-show="!showStop"><br>Time Elapsed<br>[[parseInt(elapsed/60)]] mins</span>
             </div>
             <div class="col-lg-auto px-4">
-                Checkpoints<br><span v-html="formatActiveCheckpoints()"></span>
+                Checkpoints<br>
+                <ol style="padding-left: 1rem;">
+                    <li v-for="checkpoint in activeCheckpoints">
+                        <strong>[[checkpoint]] </strong>
+                        <small style="cursor: help;" :href="`/wiki/${checkpoint}`" @mouseenter="showPreview" @mouseleave="hidePreview">
+                            ⓘ
+                        </small>
+                    </li>
+                </ol>
             </div>
         </div>
         <div v-show="!showStop" class="row flex-row flex-nowrap justify-content-end py-2">
@@ -42,7 +52,7 @@
             </div>
             <div class="col-sm-auto">
                 <button v-on:click="finish(0)" class="btn btn-outline-secondary mt-auto" style="font-size: 0.75rem">End my suffering</button>
-            </div> 
+            </div>
         </div>
     </div>
 
@@ -60,7 +70,15 @@
                     <br>Unique Articles Visited<br>[[numVisitedUnique]]
                 </div>
                 <div class="col-lg-auto px-4">
-                    Checkpoints<br><span v-html="formatActiveCheckpoints()"></span>
+                    Checkpoints<br>
+                    <ol style="padding-left: 1rem;">
+                        <li v-for="checkpoint in activeCheckpoints">
+                            <strong>[[checkpoint]] </strong>
+                            <small style="cursor: help;" :href="`/wiki/${checkpoint}`" @mouseenter="showPreview" @mouseleave="hidePreview">
+                                ⓘ
+                            </small>
+                        </li>
+                    </ol>
                 </div>
             </div>
             <div class="row flex-row flex-nowrap justify-content-end py-2">
@@ -69,16 +87,25 @@
                 </div>
                 <div class="col-sm-auto">
                     <button v-on:click="finish(0)" class="btn btn-outline-secondary mt-auto" style="font-size: 0.75rem">Just end my suffering already</button>
-                </div> 
+                </div>
                 <div class="col-sm-auto">
                     <button v-on:click="showStop = !showStop" class="btn btn-outline-secondary mt-auto" style="font-size: 0.75rem">Continue</button>
-                </div> 
+                </div>
             </div>
         </div>
     </div>
 
     <marathon-help v-show="started && !finished && showHelp" v-cloak v-on:close-help="showHelp = !showHelp">
     </marathon-help>
+
+    <div v-if="previewContent">
+        <div v-if="eventType === 'click'" class="blocker" @click="hidePreview"></div>
+        <page-preview
+            :article-preview="previewContent"
+            :client-x="eventX"
+            :client-y="eventY"
+        ></page-preview>
+    </div>
 
     <countdown-timer
         v-bind:start-article="startArticle"
@@ -99,14 +126,21 @@
         v-bind:saved="saved"
         v-bind:checkpoint-limit="numCheckpointsToStop"
         v-bind:username="username"
+        v-bind:logged-in="loggedIn"
 
         v-show="finished"
     ></finish-page>
 
 
     <div v-show="started && !finished" id="main">
-        <div id="wikipedia-frame"></div>
+        <div id="wikipedia-frame" class="main-text"></div>
+        <div id="article-end-marker">
+            <hr class="mt-5">
+            <div class="text-center font-weight-light"><strong>- End of Article -</strong></div>
+            <hr class="mb-3">
+        </div>
     </div>
 
+</template>
 </div>
 {% endblock %}

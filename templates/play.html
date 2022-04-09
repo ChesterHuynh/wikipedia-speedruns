@@ -16,28 +16,34 @@
 {% block content %}
 
 <div id="app">
-
+<template v-cloak> <!--Top level v-cloak to hide stuff when loading vue-->
     <div v-show="started && !finished">
 
         <div class="show-on-desktop">
-
-            <div id="time-box" class="HUDwrapper container">
+            <div class="HUDwrapper container" id="time-box">
                 <div class="row flex-row">
-                    <div class="col-sm-auto text-nowrap px-4 py-2">
+                    <div class="col-sm-auto text-nowrap px-4 pt-2">
                         Start Article<br><strong>[[startArticle]]</strong>
-                        <br>Current Article<br><strong>[[currentArticle]]</strong>
                     </div>
-                    <div class="col-sm-auto text-nowrap px-4 py-2">
+                    <div class="col-sm-auto text-nowrap px-4 pt-2">
                         End Article<br><strong>[[endArticle]] </strong>
-                        <small style="cursor: default;" :href="`/wiki/${endArticle}`" @mouseenter="mouseEnter" @mouseleave="mouseLeave">
+                        <small style="cursor: help;" :href="`/wiki/${endArticle}`" @mouseenter="showPreview" @mouseleave="hidePreview">
                             ⓘ
                         </small>
                     </div>
-                    <div class="col-sm-auto text-nowrap px-4 py-2">
+                    <div class="col-sm-auto text-nowrap px-4 pt-2">
+                        Links clicked<br><strong>[[path.length - 1]]</strong>
+                    </div>
+                    <div class="col-sm-auto text-nowrap px-4 pt-2">
                         Time Elapsed<br><strong>[[elapsed.toFixed(3)]] s</strong>
                     </div>
                 </div>
-            </div>    
+                <div class="row flex-row">
+                    <div class="col-lg-auto text-nowrap px-4 py-2">
+                        Current Article<br><strong>[[currentArticle]]</strong>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="show-on-mobile">
@@ -46,19 +52,30 @@
                     Start Article: <strong>[[startArticle]]</strong>
                     <br>
                     End Article: <strong>[[endArticle]]</strong>
-                    <small style="cursor: default; font-size: 15px;" :href="`/wiki/${endArticle}`" @click="mobilePreviewClick(event)" id="mobile-end-article-info">ⓘ</small>
+                    <small style="cursor: help;" :href="`/wiki/${endArticle}`" @click="showPreview">
+                        ⓘ
+                    </small>
                     <br>
                     Current Article: <strong>[[currentArticle]]</strong>
+                    <br>
+                    Links clicked: <strong>[[path.length - 1]]</strong>
                     <br>
                     Time Elapsed: <strong>[[elapsed.toFixed(3)]] s</strong>
                 </div>
             </div>
         </div>
-
-        <div v-if="loading && hover" v-html="displayPreview()" class="tooltip-container" :style="computePosition()"></div>
     </div>
 
-    <countdown-timer id="time-box"
+    <div v-if="previewContent">
+        <div v-if="eventType === 'click'" class="blocker" @click="hidePreview"></div>
+        <page-preview
+            :article-preview="previewContent"
+            :client-x="eventX"
+            :client-y="eventY"
+        ></page-preview>
+    </div>
+
+    <countdown-timer id="countdown-box"
         v-bind:start-article="startArticle"
         v-bind:end-article="endArticle"
         v-on:start-game="start"
@@ -75,12 +92,19 @@
         v-bind:final-time="endTime - startTime"
         v-bind:path="path"
 
+        v-bind:logged-in="loggedIn"
+
         v-show="finished"
     ></finish-page>
 
     <div v-show="started && !finished" id="main">
         <div id="wikipedia-frame" class="main-text"></div>
+        <div id="article-end-marker">
+            <hr class="mt-5">
+            <div class="text-center font-weight-light"><strong>- End of Article -</strong></div>
+            <hr class="mb-3">
+        </div>
     </div>
-
+</template>
 </div>
 {% endblock %}

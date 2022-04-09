@@ -9,13 +9,17 @@ these components should be as modular/generic as possible.
 //JS module imports
 import { serverData } from "./modules/serverData.js";
 import { fetchJson } from "./modules/fetch.js";
+import { startRun, submitRun } from "./modules/game/runs.js";
 import { getArticleSummary } from "./modules/wikipediaAPI/util.js";
 
 import { CountdownTimer } from "./modules/game/countdown.js";
 import { FinishPage } from "./modules/game/finish.js";
 import { ArticleRenderer } from "./modules/game/articleRenderer.js";
+import { PagePreview } from "./modules/game/pagePreview.js";
 
 import { basicCannon, fireworks, side } from "./modules/confetti.js";
+
+import { startLocalRun, submitLocalRun } from "./modules/localStorage/localStorageSprint.js";
 
 
 // retrieve the unique prompt_id of the prompt to load
@@ -41,34 +45,6 @@ async function getPrompt(promptId, lobbyId=null) {
     return await response.json();
 }
 
-async function startRun(promptId, lobbyId=null) {
-    // No need to record unfinished private runs
-    if (lobbyId) {
-        return -1;
-    }
-
-    const response = await fetchJson("/api/runs", "POST", {
-        "prompt_id": promptId,
-    });
-    return await response.json();
-}
-
-async function submitRun(promptId, lobbyId,  runId, startTime, endTime, path) {
-    const reqBody = {
-        "start_time": startTime,
-        "end_time": endTime,
-        "path": path,
-    }
-
-    if (lobbyId) {
-        const response = await fetchJson(`/api/lobbys/${lobbyId}/prompts/${promptId}/runs`, 'POST', reqBody);
-        return (await response.json())["run_id"];
-    } else {
-        // Send results to API
-        const response = await fetchJson(`/api/runs/${runId}`, 'PATCH', reqBody);
-        return runId;
-    }
-}
 
 //Vue container. This contains data, rendering flags, and functions tied to game logic and rendering. See play.html
 let app = new Vue({
@@ -76,13 +52,13 @@ let app = new Vue({
     el: '#app',
     components: {
         'countdown-timer': CountdownTimer,
-        'finish-page': FinishPage
+        'finish-page': FinishPage,
+        'page-preview': PagePreview
     },
     data: {
         startArticle: "",    //For all game modes, this is the first article to load
         endArticle: "",      //For sprint games. Reaching this article will trigger game finishing sequence
         currentArticle: "",
-        articlePreview: "",
         path: [],             //array to store the user's current path so far, submitted with run
 
         promptId: null,        //Unique prompt id to load, this should be identical to 'const PROMPT_ID', but is mostly used for display
@@ -98,14 +74,20 @@ let app = new Vue({
         started: false,      //Flag for whether a game has started (countdown finished), used for rendering
 
         renderer: null,
-        hover: false,
-        loading: false,
+        loggedIn: false,
 
-        clientX: 0,
-        clientY: 0
+        previewContent: null,
+
+        eventTimestamp: null,
+        eventType: null,
+        eventX: 0,
+        eventY: 0
     },
 
     mounted: async function() {
+
+        this.loggedIn = "username" in serverData;
+
         this.promptId = PROMPT_ID;
         this.lobbyId = LOBBY_ID;
 
@@ -116,52 +98,51 @@ let app = new Vue({
 
         this.currentArticle = this.startArticle;
 
-        this.runId = await startRun(PROMPT_ID, LOBBY_ID);
+        /*
+        if (this.loggedIn || this.lobbyId != null) {
+            this.runId = await startRun(PROMPT_ID, LOBBY_ID);
+        } else {
+            this.runId = startLocalRun(PROMPT_ID);
+            console.log("Not logged in, adding to local storage")
+            //console.log(this.runId);
+        }*/
 
-        this.renderer = new ArticleRenderer(document.getElementById("wikipedia-frame"), this.pageCallback, this.setupPreviews);
+        this.runId = await startRun(PROMPT_ID, LOBBY_ID);
+        if (!this.loggedIn && this.lobbyId == null) {
+            startLocalRun(PROMPT_ID, this.runId);
+            console.log("Not logged in, uploading start of run to local storage")
+            //console.log(this.runId)
+        }
+
+        this.renderer = new ArticleRenderer(document.getElementById("wikipedia-frame"), this.pageCallback, this.showPreview, this.hidePreview);
     },
 
 
     methods : {
-        async pageCallback(page, loadTime) {
+        pageCallback: function(page, loadTime) {
 
-            // console.log("page callback")
-
-            this.loading = false;
-            this.hover = false;
+            this.hidePreview();
             // Game logic for sprint mode:
 
             if (this.path.length == 0 || this.path[this.path.length - 1] != page) {
                 this.path.push(page);
             }
-            //this.path.push(page);
 
             this.currentArticle = page;
 
             this.startTime += loadTime;
 
-            setMargin();
-
             //if the page's title matches that of the end article, finish the game, and submit the run
-            if (page.replace("_", " ").toLowerCase() === this.endArticle.replace("_", " ").toLowerCase()) {
 
-                this.finished = true;
-
-                // Disable popup
-                window.onbeforeunload = null;
-
-                this.endTime = Date.now();
-
-                this.runId = await submitRun(PROMPT_ID, LOBBY_ID, this.runId, this.startTime, this.endTime, this.path);
-              
-                fireworks();
+            if (page === this.endArticle) {
+                this.finish();
             }
 
         },
 
         async start() {
             //Toggle the `started` render flag, which will hide all other elements, and display the rendered wikipage
-            this.started = true;
+
             //start timer
             this.startTime = Date.now();
 
@@ -173,91 +154,54 @@ let app = new Vue({
 
             await this.renderer.loadPage(this.startArticle);
 
-            this.setupPreviews();
-            await this.pageCallback(this.startArticle, Date.now() - this.startTime)
+            this.started = true;
         },
 
-        displayPreview: function() {
-            let html = "";
-            if ("originalimage" in this.articlePreview) {
-                html += '<img src="' + this.articlePreview["originalimage"]["source"] + '"/>';
+        async finish() {
+            this.finished = true;
+
+            // Disable popup
+            window.onbeforeunload = null;
+
+            this.endTime = Date.now();
+
+            this.runId = await submitRun(PROMPT_ID, LOBBY_ID, this.runId, this.startTime, this.endTime, this.path);
+            if (!this.loggedIn && this.lobbyId == null) {
+                submitLocalRun(PROMPT_ID, this.runId, this.startTime, this.endTime, this.path);
+                console.log("Not logged in, submitting run to local storage")
+                //console.log(this.runId)
             }
-            html += '<div>' + this.articlePreview["extract_html"] + '</div>';
-            return html;
+
+            fireworks();
         },
 
-        computePosition: function() {
-            const vh = window.innerHeight;
-            const vw = window.innerWidth;
-            const styleObject = new Object();
-
-            if (vw >= 768) {
-                if (this.clientX < vw / 2.0) {
-                    styleObject['left'] = `${this.clientX+10}px`;
-                } else {
-                    styleObject['right'] = `${vw-this.clientX+10}px`;
-                }
-                if (this.clientY < vh / 2.0) {
-                    styleObject['top'] = `${this.clientY+10}px`;
-                } else {
-                    styleObject['bottom'] = `${vh-this.clientY+10}px`;
-                }
-            } else {
-                styleObject['left'] = '10px';
-                styleObject['bottom'] = `${document.getElementById("time-box-mobile").offsetHeight + 25}px`;
-            }
-            return styleObject;
-        },
-
-        mouseEnter: function(e) {
-            this.loading = true;
+        showPreview: function(e) {
+            this.eventTimestamp = e.timeStamp;
+            this.eventType = e.type;
+            this.eventX = e.clientX;
+            this.eventY = e.clientY;
             const href = e.currentTarget.getAttribute("href");
             const title = href.split('/wiki/').pop();
+            const promises = [ getArticleSummary(title) ];
+            if (e.type !== "click") {
+                promises.push(new Promise(resolve => setTimeout(resolve, 600)));
+            }
             // const promise1 = getArticleSummary(title);
             // const promise2 = new Promise(resolve => setTimeout(resolve, 500));
-            getArticleSummary(title).then(resp => {
-                if (this.loading) {
-                    this.articlePreview = resp;
-                    this.hover = true;
-                    this.clientX = e.clientX;
-                    this.clientY = e.clientY;
+            Promise.all(promises).then((values) => {
+                if (e.timeStamp === this.eventTimestamp) {
+                    this.previewContent = values[0];
                 }
             });
         },
 
-        mouseLeave: function() {
-            this.loading = false;
-            this.hover = false;
-            this.articlePreview = '';
-        },
-
-        setupPreviews: function() {
-            if (screen.width >= 768) {
-                document.getElementById("wikipedia-frame").querySelectorAll("a").forEach(e => {
-                    if (e.hasAttribute("href") && e.getAttribute("href").startsWith("/wiki/")) {
-                        e.addEventListener("mouseenter", this.mouseEnter);
-                        e.addEventListener("mouseleave", this.mouseLeave);
-                    }
-                });
-            } 
-        },
-
-        mobilePreviewClick: function (e) {
-            //console.log("click function")
-            if (this.loading) this.mouseLeave();
-            else this.mouseEnter(e);
+        hidePreview: function() {
+            this.eventTimestamp = null;
+            this.previewContent = null;
         }
 
     }
 })
-
-function setMargin() {
-    const element = document.getElementById("time-box");
-    const mobile_timebox_el = document.getElementById("time-box-mobile");
-    let margin = Math.max((element.offsetHeight + 25), (mobile_timebox_el.offsetHeight + 25), 100);
-    //(element.offsetHeight + 25) > 100 ? (element.offsetHeight + 25) : 100
-    document.getElementById("wikipedia-frame").style.marginBottom = margin +"px";
-}
 
 // Prevent accidental leaves
 window.onbeforeunload = function() {
