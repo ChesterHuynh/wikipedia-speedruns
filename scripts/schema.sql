@@ -2,7 +2,7 @@
     This file should have parity with the actual database.
     For any changes to the database, those changes should be reflected here.
 
-    Schema Version: 2.1
+    Schema Version: 2.4
     This version number should be incremented with any change to the schema.
     Keep this up-to-date with db.py
 */
@@ -96,6 +96,17 @@ CREATE TABLE IF NOT EXISTS `lobbys` (
     `create_date` DATETIME NOT NULL,
     `active_date` DATETIME NULL,
     `rules` JSON NULL,
+    /*
+    Schema for rules. In general, we need to be backwards compatible, so
+    these should have default values or default behavior if the fields are missing
+    {
+        hide_prompt_end: (false)
+        restrict_leaderboard_access: (false)
+        require_account: (false)
+    }
+    */
+
+
     PRIMARY KEY (`lobby_id`)
 );
 
@@ -112,6 +123,7 @@ CREATE TABLE IF NOT EXISTS `lobby_prompts` (
     `prompt_id` INT NOT NULL,
     `start` VARCHAR(255) NOT NULL,
     `end` VARCHAR(255) NOT NULL,
+    `language` VARCHAR(31) NOT NULL,
     PRIMARY KEY (`lobby_id`, `prompt_id`),
     FOREIGN KEY (`lobby_id`) REFERENCES `lobbys`(`lobby_id`)
 );
@@ -190,4 +202,57 @@ CREATE TABLE IF NOT EXISTS `achievements_progress` (
     PRIMARY KEY (`achievement_id`, `user_id`),
     FOREIGN KEY (`achievement_id`) REFERENCES `list_of_achievements`(`achievement_id`),
     FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`)
-)
+);
+
+CREATE TABLE IF NOT EXISTS `quick_runs` (
+    `run_id` INT NOT NULL AUTO_INCREMENT,
+    `start_time` TIMESTAMP(3) NULL,
+    `end_time` TIMESTAMP(3) NULL,
+    `play_time` FLOAT NULL,
+    `finished` BOOLEAN DEFAULT 0,
+    `path` JSON NULL,
+    /*
+    {
+        "version": number
+        "path": [
+            ...
+            {
+                "article": string,
+                "timeReached": number,
+                "loadTime": number,
+            },
+            ...
+        ]
+    }
+    */
+    `prompt_start` VARCHAR(255) NOT NULL,
+    `prompt_end` VARCHAR(255) NOT NULL,
+    `language` VARCHAR(31) NOT NULL,
+    `user_id` INT,
+    PRIMARY KEY (`run_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`)
+);
+
+-- Stats
+CREATE TABLE IF NOT EXISTS `computed_stats` (
+    `stats_json` JSON NOT NULL,
+    /*
+    {
+        version: number - The database version number.
+        stats: dict[stat_name: str, stat_val: number | Any] - See stats.py for list of included stats. Newer stats not guaranteed to be included in older runs.
+    }
+        example stats payload:
+        stats: {
+            .
+            .
+            daily_quick_runs: []
+            daily_sprints: [{daily_plays: 41, day: "2022-11-09", total: "41"}, {daily_plays: 41, day: "2022-11-10", total: "82"},…]
+            goog_total: 0
+            lobbies_created: 41
+            .
+            .
+        }
+    */
+    `timestamp` TIMESTAMP(3) NOT NULL,
+    PRIMARY KEY (`timestamp`)      
+);

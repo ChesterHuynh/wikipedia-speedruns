@@ -5,12 +5,13 @@ export class ArticleRenderer {
     /* frame: DOM element (i.e. through getElementById) to render article in
      * pageCallback: Called upon loading an article, should expect new page and load time
      */
-    constructor(frame, pageCallback, mouseEnter, mouseLeave, loadCallback=null) {
+    constructor(frame, pageCallback, mouseEnter, mouseLeave, loadCallback, language) {
         this.frame = frame;
         this.pageCallback = pageCallback;
         this.loadCallback = loadCallback;
         this.mouseEnter = mouseEnter;
         this.mouseLeave = mouseLeave;
+        this.language = language;
     }
 
     async loadPage(page) {
@@ -18,17 +19,22 @@ export class ArticleRenderer {
             if (this.loadCallback) {
                 this.loadCallback();
             }
-            
+
             const isMobile = window.screen.width < 768;
             const startTime = Date.now();
-            const body = await getArticle(page, isMobile);
+            const body = await getArticle(page, isMobile, this.language);
 
             this.frame.innerHTML = body["text"]["*"];
 
             // Create title
             let titleEl = document.createElement("div");
             titleEl.innerHTML = "<h1><i>" + body["title"] + "</i></h1>";
-            this.frame.insertBefore(titleEl, this.frame.firstChild);
+            this.frame.prepend(titleEl);
+
+            // Create end
+            let endArticleEl = document.createElement("div");
+            endArticleEl.innerHTML = `<hr class="mt-5"><h3 class="text-center">END</h3><hr>`
+            this.frame.append(endArticleEl);
 
             if (isMobile) {
                 disableLazyLoading(this.frame);
@@ -39,17 +45,21 @@ export class ArticleRenderer {
 
             this.frame.classList.add("wiki-insert");
             this.frame.querySelectorAll("a, area").forEach((el) => {
-                // Arrow function to prevent this from being overwritten
-                el.onclick = (e) => this.handleWikipediaLink(e);
+                // Load href here so inspect element can't change link destination
+                const href = el.getAttribute("href");
+
+                // Arrow function to prevent 'this' from being overwritten
+                el.onclick = (e) => {
+                    e.preventDefault();
+                    this.handleWikipediaLink(href);
+                }
                 el.removeAttribute("title");
 
-                if (window.screen.width >= 768 && el.hasAttribute("href") && el.getAttribute("href").startsWith("/wiki/")) {
+                if (this.mouseEnter && this.mouseLeave && !isMobile && el.hasAttribute("href") && el.getAttribute("href").startsWith("/wiki/")) {
                     el.onmouseenter = this.mouseEnter;
                     el.onmouseleave = this.mouseLeave;
                 }
             });
-
-            window.scrollTo(0, 0);
 
             this.pageCallback(body["title"], Date.now() - startTime);
 
@@ -65,19 +75,15 @@ export class ArticleRenderer {
     }
 
 
-    handleWikipediaLink(e) {
-        e.preventDefault();
-
-        const linkEl = e.currentTarget;
-
-        if (linkEl.getAttribute("href").substring(0, 1) === "#") {
-            let a = linkEl.getAttribute("href").substring(1);
+    handleWikipediaLink(href) {
+        if (href.substring(0, 1) === "#") {
+            let a = href.substring(1);
             document.getElementById(a).scrollIntoView();
 
         } else {
             // Ignore external links and internal file links
             // TODO merge this with stripNamespaceLinks
-            if (!linkEl.getAttribute("href").startsWith("/wiki/") || linkEl.getAttribute("href").startsWith("/wiki/File:")) {
+            if (!href.startsWith("/wiki/") || href.startsWith("/wiki/File:")) {
                 return;
             }
 
@@ -90,7 +96,7 @@ export class ArticleRenderer {
             });
 
             // Remove "/wiki/" from string
-            this.loadPage(linkEl.getAttribute("href").substring(6))
+            this.loadPage(href.substring(6))
         }
     }
 }

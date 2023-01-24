@@ -1,7 +1,13 @@
 import {startRun, submitRun, updateAnonymousRun} from "../game/runs.js"
 import { getLocalStorageRuns, addRunToLocalStorage, setLocalStorageRuns } from "./localStorage.js"
+import {startLocalQuickRun, submitLocalQuickRun } from "./localStorageQuickRun.js"
 
-function startLocalRun(promptId, runId) {
+function startLocalRun(promptId, promptStart, promptEnd, runId, language) {
+    if(promptId == null){
+        startLocalQuickRun(promptStart, promptEnd, runId, language);
+        return;
+    }
+
     const data = {
         run_id: runId,
         prompt_id: promptId,
@@ -12,7 +18,12 @@ function startLocalRun(promptId, runId) {
     addRunToLocalStorage(key, data);
 }
 
-function submitLocalRun(promptId, runId, startTime, endTime, finished, path) {
+function submitLocalRun(promptId, promptStart, promptEnd, runId, startTime, endTime, finished, path, language) {
+    if(promptId == null){
+        submitLocalQuickRun(promptStart, promptEnd, runId, startTime, endTime, finished, path, language);
+        return;
+    }
+
     let data = {
         prompt_id: promptId,
         start_time: startTime,

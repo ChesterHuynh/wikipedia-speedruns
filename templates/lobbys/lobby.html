@@ -11,7 +11,7 @@
 
 }
 
-.prompt-header h3 { 
+.prompt-header h3 {
   display: inline;
 }
 
@@ -25,187 +25,9 @@
 }
 </style>
 
-
-<script type="module">
-import { fetchJson } from "/static/js/modules/fetch.js";
-import { serverData } from "/static/js/modules/serverData.js";
-import { getArticleTitle, articleCheck } from "/static/js/modules/wikipediaAPI/util.js";
-import { PromptGenerator } from "/static/js/modules/generator.js"
-
-const LOBBY_ID = serverData["lobby_id"];
-
-var app = new Vue({
-    delimiters: ['[[', ']]'],
-    el: '#app',
-    components: {
-        'prompt-generator': PromptGenerator
-    },
-    data: {
-        startPrompt:"",
-        endPrompt:"",
-        addPromptMessage:"",
-
-        prompts: [],
-
-        link: "",
-
-        lobbyInfo: {
-            "name": null,
-            "desc": null,
-            "user": {
-                "name": null,
-                "owner": null
-            }
-        },
-
-        editPrompts: false,
-        selectedPrompts: new Set(),
-
-        users: null,
-        anon_users: null,
-    },
+<script type="module" src="{{url_for('static', filename='js-build/lobbys/lobby.js')}}"></script>
 
 
-    created: async function() {
-        this.getPrompts();
-        this.getLobbyInfo();
-    },
-
-    mounted: function() {
-        this.link = window.location.href;
-    },
-
-    methods: {
-
-        copyInviteLink() {
-            const link = `Join my Wikispeedruns lobby\n${window.location.href}\nPasscode: ${this.lobbyInfo.passcode}`
-            document.getElementById("custom-tooltip").style.display = "inline";
-            navigator.clipboard.writeText(link);
-            setTimeout(function() {
-                document.getElementById("custom-tooltip").style.display = "none";
-            }, 1500);
-        },
-
-        selectPrompt(prompt_id) {
-            if (this.selectedPrompts.has(prompt_id)) {
-                this.selectedPrompts.delete(prompt_id);
-            } else {
-                this.selectedPrompts.add(prompt_id);
-            }
-        },
-
-        clearSelectedPrompts() {
-            this.selectedPrompts.clear();
-        },
-
-        async getLobbyInfo() {
-            const resp = await fetchJson(`/api/lobbys/${LOBBY_ID}`);
-            this.lobbyInfo = await resp.json();
-
-            if (this.lobbyInfo.user.owner) {
-                await this.getLobbyUsers();
-            }
-        },
-
-        async getPrompts() {
-            const resp = await fetchJson(`/api/lobbys/${LOBBY_ID}/prompts`);
-            this.prompts = await resp.json();
-
-        },
-
-        async generatePrompt(e) {
-            const prompt = await getGeneratedPrompt(this.difficulty);
-            this.startPrompt = prompt["start"];
-            this.endPrompt = prompt["end"];
-        },
-
-
-        async addPrompt() {
-            this.addPromptMessage = "";
-
-            const start = await getArticleTitle(this.startPrompt);
-            if (start === null) {
-                this.addPromptMessage = `"${this.startPrompt}" is not a Wikipedia article`;
-                return;
-            }
-
-            const end = await getArticleTitle(this.endPrompt);
-            if (end === null) {
-                this.addPromptMessage = `"${this.endPrompt}" is not a Wikipedia article`;
-                return;
-            }
-
-            const checkRes = await articleCheck(this.endPrompt);
-            if ('warning' in checkRes) {
-                this.addPromptMessage = checkRes["warning"];
-                return;
-            }
-
-            const resp = await fetchJson(`/api/lobbys/${LOBBY_ID}/prompts`, "POST", {
-                "start": start,
-                "end": end
-            });
-
-            this.getPrompts();
-        },
-
-        async deletePrompts() {
-            if (!confirm("Are you sure you want to delete the selected prompts and their runs?")) {
-               return; 
-            }
-
-            const resp = await fetchJson(`/api/lobbys/${LOBBY_ID}/prompts`, "DELETE", {
-                "prompts": Array.from(this.selectedPrompts),
-            }); 
-
-            this.editPrompts = false;
-            this.clearSelectedPrompts();
-            this.getPrompts();
-        },
-
-
-        async getLobbyUsers() {
-
-            Promise.all([
-                fetchJson(`/api/lobbys/players/${LOBBY_ID}`, "GET"), 
-                fetchJson(`/api/lobbys/anon_players/${LOBBY_ID}`, "GET")
-            ])
-            .then(responses =>
-                Promise.all(responses.map(res => res.json()))
-            ).then(resp => {
-                this.users = resp[0];
-                this.anon_users = resp[1];
-            }).catch(err => console.log(err));
-
-        },
-
-        async makeHost(user_id, username) {
-            if (!confirm(`Are you sure you want to make ${username} the lobby host?`)) {
-                return; 
-            }
-
-            try {
-                const resp = await fetchJson(`/api/lobbys/change_host/${LOBBY_ID}`, "PATCH", {
-                    "target_user_id": user_id,
-                });
-                
-                alert(`${username} is now host!`);
-                window.location.reload();
-            } catch (e) {
-                console.log(e)
-                alert(e);
-            }
-        },
-
-        toggleDropdown(id) {
-            document.getElementById(id).classList.toggle("active-dropdown")
-        }
-    }
-
-
-})
-
-</script>
 {% endblock %}
 
 {% block content %}
@@ -226,13 +48,13 @@ var app = new Vue({
         <span id="custom-tooltip" ref="shareTooltip">Copied invite to clipboard!</span>
     </div>
 
-    
+
 
     <template v-if="lobbyInfo.user.owner">
 
         <hr>
 
-        <h3>Lobby settings</h4>
+        <h3>Lobby settings</h3>
 
         <details>
             <summary>List of players</summary>
@@ -246,19 +68,19 @@ var app = new Vue({
                         </thead>
                         <tbody>
                             <tr v-for="user in users" v-cloak>
-                                <td>[[user.username]]</td>
+                                <td><user :username="user.username" /></td>
                                 <td>Registered User</td>
                                 <td>
                                     <div class="dropdown">
-                                        <button class="btn btn-secondary dropdown-toggle" 
-                                                type="button" 
-                                                data-toggle="dropdown" 
-                                                aria-haspopup="true" 
+                                        <button class="btn btn-secondary dropdown-toggle"
+                                                type="button"
+                                                data-toggle="dropdown"
+                                                aria-haspopup="true"
                                                 aria-expanded="true"
                                                 @click="toggleDropdown(String(user.user_id)+'dropdown')">
                                             <small>Options</small>
                                         </button>
-                                        <div class="dropdown-menu" 
+                                        <div class="dropdown-menu"
                                             v-bind:id="String(user.user_id)+'dropdown'">
                                             <button v-if="!user.owner" class="btn btn-sm" @click="makeHost(user.user_id, user.username)">Transfer Ownership</button>
                                             <button class="btn btn-sm disabled" v-else>Currently host</button>
@@ -277,37 +99,50 @@ var app = new Vue({
             </div>
         </details>
 
-        <h4 class="py-4">Manage: Add a prompt</h4>
+        <hr>
+
+        <h3>Add a Prompt:</h3>
 
         <form id="newPrompt" v-on:submit.prevent="addPrompt">
             <div class="my-2 row">
-                <div class="col-md-4 col-sm-6">
-                    <input  class="form-control" type="text" id="start" name="start" placeholder="Start Article" v-model="startPrompt">
+                <div class="col-md-6 col-sm-8">
+                    <select class="form-select" v-model="language">
+                        <option selected value="en"> English (en) </option>
+                        <option v-for="lang in languages" v-bind:value="lang.code">[[lang.name]] ([[lang.code]])</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="mb-2 row">
-                <div class="col-md-4 col-sm-6">
-                    <input class="form-control" type="text" id="end" name="end" placeholder="End Article" v-model="endPrompt">
+            <div class="my-2 row">
+                <div class="col-md-6 col-sm-8">
+                    <div class="input-group">
+                        <ac-input :text.sync="startPrompt" :lang="language" placeholder="Start Article"></ac-input>
+                        <button type="button" class="btn border" style="background-color: #e9ecef;" @click="generateRndPrompt('startPrompt')">
+                            <i class="bi bi-shuffle"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <details class="mb-4">
-                <summary>Prompt Generation</summary>
+            <div class="my-2 row">
+                <div class="col-md-6 col-sm-8">
+                    <div class="input-group">
+                        <ac-input :text.sync="endPrompt" :lang="language" placeholder="End Article"></ac-input>
+                        <button type="button" class="btn border" style="background-color: #e9ecef;" @click="generateRndPrompt('endPrompt')">
+                            <i class="bi bi-shuffle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-                <prompt-generator
-                    v-bind:start.sync="startPrompt"
-                    v-bind:end.sync="endPrompt"
-                ></prompt-generator>
-
-
-            </details>
-
+            <p v-if="messageType != null" :class="`text-${messageType}`">[[addPromptMessage]]</p>
             <input class="btn btn-primary" type="submit" value="Submit">
+
+            <details class="mt-3" v-show="language === 'en'">
+                <summary>Random Article Generator Settings</summary>
+                <prompt-generator ref="pg" class="col-md-4 col-sm-6"></prompt-generator>
+            </details>
         </form>
-
-        <p class="text-danger">[[addPromptMessage]]</p>
-
 
         <hr>
 
@@ -317,15 +152,16 @@ var app = new Vue({
     <div class="prompt-header">
         <h3> Prompts </h3>
         <template v-if="lobbyInfo.user.owner">
-            <a v-on:click="editPrompts = !editPrompts">(Edit)</a>
+            <a style="cursor:pointer" v-on:click="editPrompts = !editPrompts">(Edit)</a>
         </template>
     </div>
-    
+
     <div class="card">
         <div class="card-body">
             <table class="table table-hover">
                 <thead>
                     <th style="width:100px" scope="col">Prompt #</th>
+                    <th scope="col">Language</th>
                     <th scope="col">Start Article</th>
                     <th scope="col">End Article</th>
                     <th class="text-center"></th>
@@ -335,21 +171,39 @@ var app = new Vue({
                         <td>[[prompt.prompt_id]]
                             (<a v-bind:href="'/lobby/' + lobbyInfo.lobby_id + '/play/' + prompt.prompt_id">play</a>)
                         </td>
+                        <td>[[prompt.language]]</td>
 
                         <td>[[prompt.start]]</td>
-                        <td>[[prompt.end]]</td>
+                        <td v-bind:title="prompt.end === null ? 'Hidden due to competitive mode' : ''" >[[prompt.end || "-"]]</td>
 
-                        <td><a v-bind:href="'/lobby/' + lobbyInfo.lobby_id + '/leaderboard/' + prompt.prompt_id">Results</a></td>
+                        <td>
+                            <a
+                                v-if="prompt.end !== null"
+                                v-bind:href="'/lobby/' + lobbyInfo.lobby_id + '/leaderboard/' + prompt.prompt_id"
+                            >
+                                Results
+                            </a>
+                            <span v-else class="text-muted" title="Play to see the results!">
+                                Results
+                            </span>
+
+
+                        </td>
                         <td v-if="editPrompts">
-                            <input type="checkbox" @click="selectPrompt(prompt.prompt_id)">
+                            <input type="checkbox" :value="prompt.prompt_id" v-model="selectedPrompts">
                         </td>
                     </tr>
                 </tbody>
             </table>
-            <input v-if="editPrompts" href="javascript:;" @click="deletePrompts" class="btn btn-danger" value="Delete Selected">
+            <div v-if="editPrompts">
+                <input href="javascript:;" @click="selectAllPrompts" class="btn btn-primary" value="Select All">
+                <input href="javascript:;" @click="clearSelectedPrompts" class="btn btn-primary" value="Deselect All">
+                <input href="javascript:;" @click="deletePrompts" class="btn btn-danger" value="Delete Selected">
+            </div>
         </div>
     </div>
 
+    <br> <br>
 
 </div>
 {% endblock %}
